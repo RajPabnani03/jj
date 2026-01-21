@@ -4,23 +4,60 @@ This document provides a comprehensive guide for AI assistants working on the Ju
 
 ## Project Overview
 
-**Jujutsu** is an experimental version control system written in Rust that combines concepts from Git, Mercurial, Sapling, and Darcs. It's designed to be user-friendly, powerful, and compatible with Git repositories.
+**Jujutsu** (command: `jj`) is an experimental yet production-ready version control system written in Rust that combines innovative ideas from Git, Mercurial, Sapling, and Darcs. It abstracts the user interface and version control algorithms from the storage systems, allowing it to serve as a VCS with multiple possible physical backends. Currently, it uses Git repositories as a storage layer, making it **fully compatible with Git** and all Git-based tools and forges.
+
+All core developers use Jujutsu to develop Jujutsu itself on GitHub. The project was started by Martin von Zweigbergk (Google) as a hobby project in late 2019 and has evolved into his full-time project at Google with several other Googlers assisting, though **this is not a Google product**.
+
+### Project Information
 
 - **Version**: 0.32.0
-- **License**: Apache-2.0
+- **License**: Apache-2.0 (see [`LICENSE`](./LICENSE))
+  - Does not transfer copyright ownership
+  - Allows free use, modification, and redistribution
+  - Includes patent grant protection
+- **Copyright**: The Jujutsu Authors
 - **Language**: Rust
 - **Edition**: 2024
-- **MSRV**: 1.85 (current stable minus one)
+- **MSRV**: 1.85 (current stable Rust minus one version)
 - **Repository**: https://github.com/jj-vcs/jj
+- **Documentation**: https://jj-vcs.github.io/jj/
+- **Categories**: version-control, development-tools
 
-### Key Features
+### Maturity Status
 
-- Working-copy-as-a-commit model
-- Operation log with undo capability
-- First-class conflict handling
-- Automatic rebase
-- Git backend compatibility
-- Revset and template languages
+While labeled "experimental," Jujutsu is:
+- Used daily by all core developers for all their version control needs
+- Feature-complete for most workflows
+- Stable Git compatibility
+- Production-ready for individual and team use
+
+However, note that:
+- Some features (e.g., Git submodules) are incomplete
+- Performance optimizations are ongoing
+- Backward-incompatible changes may occur before 1.0.0
+- Email-based workflows are not natively supported
+
+### Key Features & Innovations
+
+**Core Design Principles:**
+- **Working-copy-as-a-commit**: Changes are automatically recorded as commits and amended on each change, eliminating the need for staging areas or stashes
+- **Operation log with undo**: Every operation is recorded with repo snapshots, allowing undo/redo of any operation
+- **First-class conflicts**: Conflicts are stored in commits and can be resolved later; conflict resolutions propagate through descendants automatically
+- **Automatic rebase**: Descendants are automatically rebased when you modify a commit
+- **Backend abstraction**: Storage-independent design (currently uses Git repositories for wide compatibility)
+
+**Inspired Features:**
+- **Revset language** (from Mercurial/Sapling): Powerful query language for selecting commits
+- **Template language**: Configurable output formatting
+- **No staging area** (like Mercurial): Simpler mental model
+- **Anonymous branches**: No need to name every small change
+- **Performance focus** (like Git): Efficient algorithms and data structures
+
+**Advanced Capabilities:**
+- Comprehensive history rewriting tools (`describe`, `diffedit`, `split`, `squash`)
+- Concurrent-safe replication (experimental): Safe with Dropbox, rsync, etc.
+- Co-located repositories: Use both `jj` and `git` commands on the same repo
+- Git interoperability: Commits are regular Git commits, fully compatible with Git remotes
 
 ## Repository Structure
 
