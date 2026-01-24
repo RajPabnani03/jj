@@ -434,6 +434,10 @@ fn apply_diff_builtin(
             };
             Ok(new_value)
         },
+        |path, target| {
+            let id = store.write_symlink(path, target).block_on()?;
+            Ok(Merge::normal(TreeValue::Symlink(id)))
+        },
     )?;
     tree_builder.write_tree(store)
 }
@@ -445,6 +449,7 @@ fn apply_changes(
     select_left: impl Fn(&RepoPath) -> BackendResult<MergedTreeValue>,
     select_right: impl Fn(&RepoPath) -> BackendResult<MergedTreeValue>,
     write_file: impl Fn(&RepoPath, &[u8], bool, CopyId) -> BackendResult<MergedTreeValue>,
+    write_symlink: impl Fn(&RepoPath, &str) -> BackendResult<MergedTreeValue>,
 ) -> BackendResult<()> {
     assert_eq!(
         changed_files.len(),
@@ -483,6 +488,7 @@ fn apply_changes(
             continue;
         }
 
+        let is_symlink = file_mode == mode::SYMLINK;
         let executable = file_mode == mode::EXECUTABLE;
         match contents {
             scm_record::SelectedContents::Unchanged => {
@@ -511,8 +517,13 @@ fn apply_changes(
                 tree_builder.set_or_remove(path, value);
             }
             scm_record::SelectedContents::Text { contents } => {
-                let copy_id = CopyId::placeholder();
-                let value = write_file(&path, contents.as_bytes(), executable, copy_id)?;
+                let value = if is_symlink {
+                    // Symlinks store the target path as text content
+                    write_symlink(&path, &contents)?
+                } else {
+                    let copy_id = CopyId::placeholder();
+                    write_file(&path, contents.as_bytes(), executable, copy_id)?
+                };
                 tree_builder.set_or_remove(path, value);
             }
         }
@@ -711,6 +722,10 @@ pub fn edit_merge_builtin(
                 executable,
                 copy_id,
             }))
+        },
+        |path, target| {
+            let id = store.write_symlink(path, target).block_on()?;
+            Ok(Merge::normal(TreeValue::Symlink(id)))
         },
     )?;
     Ok(tree_builder.write_tree(store)?)
@@ -1001,6 +1016,73 @@ mod tests {
                                 is_checked: false,
                                 change_type: Added,
                                 line: "executable",
+                            },
+                        ],
+                    },
+                ],
+            },
+        ]
+        "###);
+        let no_changes_tree_id = apply_diff(store, &left_tree, &right_tree, &changed_files, &files);
+        let no_changes_tree = store.get_root_tree(&no_changes_tree_id).unwrap();
+        assert_tree_eq!(
+            &left_tree.id(),
+            &no_changes_tree.id(),
+            store,
+            "no-changes tree was different",
+        );
+
+        let mut files = files;
+        for file in &mut files {
+            file.toggle_all();
+        }
+        let all_changes_tree_id =
+            apply_diff(store, &left_tree, &right_tree, &changed_files, &files);
+        let all_changes_tree = store.get_root_tree(&all_changes_tree_id).unwrap();
+        assert_tree_eq!(
+            &right_tree.id(),
+            &all_changes_tree.id(),
+            store,
+            "all-changes tree was different",
+        );
+    }
+
+    #[test]
+    fn test_edit_diff_builtin_add_symlink() {
+        let test_repo = TestRepo::init();
+        let store = test_repo.repo.store();
+
+        let added_symlink_path = repo_path("symlink");
+        let left_tree = testutils::create_tree(&test_repo.repo, &[]);
+        let right_tree = testutils::create_tree_with(&test_repo.repo, |builder| {
+            builder.symlink(added_symlink_path, "target_file");
+        });
+
+        let (changed_files, files) = make_diff(store, &left_tree, &right_tree);
+        insta::assert_debug_snapshot!(changed_files, @r#"
+        [
+            "symlink",
+        ]
+        "#);
+        insta::assert_debug_snapshot!(files, @r###"
+        [
+            File {
+                old_path: None,
+                path: "symlink",
+                file_mode: Absent,
+                sections: [
+                    FileMode {
+                        is_checked: false,
+                        mode: Unix(
+                            40960,
+                        ),
+                    },
+                    Changed {
+                        lines: [
+                            SectionChangedLine {
+                                is_checked: false,
+                                change_type: Added,
+                                line: "target_file",
                             },
                         ],
                     },
