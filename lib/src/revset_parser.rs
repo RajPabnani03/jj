@@ -1213,17 +1213,18 @@ mod tests {
             parse_into_kind("foo."),
             Err(RevsetParseErrorKind::SyntaxError)
         );
-        // Multiple '.', '-', '+' are not allowed
-        assert_eq!(
-            parse_into_kind("foo.+bar"),
-            Err(RevsetParseErrorKind::SyntaxError)
-        );
+        // Multiple '-' and '+' are allowed between identifier parts
         assert_eq!(
             parse_into_kind("foo--bar"),
-            Err(RevsetParseErrorKind::SyntaxError)
+            Ok(ExpressionKind::Identifier("foo--bar"))
         );
         assert_eq!(
             parse_into_kind("foo+-bar"),
+            Ok(ExpressionKind::Identifier("foo+-bar"))
+        );
+        // Multiple '.' or mixed with '.' are not allowed (to preserve '..' as range operator)
+        assert_eq!(
+            parse_into_kind("foo.+bar"),
             Err(RevsetParseErrorKind::SyntaxError)
         );
 
@@ -1343,6 +1344,13 @@ mod tests {
         // (foo) could be parsed as a symbol "foo", but is rejected because user
         // might expect a literal "(foo)".
         assert_matches!(parse_symbol("(foo)").as_deref(), Err(_));
+
+        // Multiple '-' and '+' are allowed in bookmark/tag names (issue #8673)
+        assert_matches!(parse_symbol("foo--x").as_deref(), Ok("foo--x"));
+        assert_matches!(parse_symbol("feature/DT-row--click-action").as_deref(), Ok("feature/DT-row--click-action"));
+        assert_matches!(parse_symbol("push--abc").as_deref(), Ok("push--abc"));
+        assert_matches!(parse_symbol("foo++bar").as_deref(), Ok("foo++bar"));
+        assert_matches!(parse_symbol("foo+-bar").as_deref(), Ok("foo+-bar"));
     }
 
     #[test]

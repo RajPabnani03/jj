@@ -22,12 +22,12 @@ whitespace = _{ " " | "\t" | "\r" | "\n" | "\x0c" }
 // /: sometimes used as a tag/bookmark namespace separator
 identifier_part = @{ (XID_CONTINUE | "_" | "/")+ }
 identifier = @{
-  identifier_part ~ (("." | "-" | "+") ~ identifier_part)*
+  identifier_part ~ (( "." | ("-" | "+")+ ) ~ identifier_part)*
 }
 // TODO: remove "/", ".", "+" for consistency with fileset?
 strict_identifier_part = @{ (ASCII_ALPHANUMERIC | "_" | "/")+ }
 strict_identifier = @{
-  strict_identifier_part ~ (("." | "-" | "+") ~ strict_identifier_part)*
+  strict_identifier_part ~ (( "." | ("-" | "+")+ ) ~ strict_identifier_part)*
 }
 
 symbol = _{
