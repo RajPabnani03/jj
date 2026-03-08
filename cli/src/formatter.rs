@@ -309,6 +309,9 @@ pub struct ColorFormatter<W: Write> {
 
 impl<W: Write> ColorFormatter<W> {
     pub fn new(output: W, rules: Arc<Rules>, debug: bool) -> Self {
+        // `jj` resolves `NO_COLOR` into config before choosing a formatter, so a
+        // constructed `ColorFormatter` should always emit color sequences.
+        crossterm::style::force_color_output(true);
         Self {
             output,
             rules,
